@@ -15,6 +15,9 @@ public class BonusCalcProcessor implements ItemProcessor<Emp, Bonus> {
 
     @Override
     public Bonus process(Emp emp) throws Exception {
+        if (emp == null) {
+            throw new IllegalArgumentException("emp must not be null.");
+        }
         final Bonus bonus = new Bonus();
         bonus.setEmpId(emp.getEmpId());
         bonus.setPayments(calcPaymeents(emp));
@@ -25,7 +28,8 @@ public class BonusCalcProcessor implements ItemProcessor<Emp, Bonus> {
         if (emp.getGrade().getFixedBonus() != null) {
             return emp.getGrade().getFixedBonus();
         } else {
-            return emp.getGrade().getBonusMagnification() * emp.getBasicSalary() / 100;
+            return emp.getGrade().getBonusMagnification()
+                    * emp.getBasicSalary() / 100;
         }
     }
 }

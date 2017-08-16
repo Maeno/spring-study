@@ -6,6 +6,14 @@ public class Bonus {
 
     private Integer payments;
 
+    public Bonus() {
+    }
+
+    public Bonus(Integer empId, Integer payments) {
+        this.empId = empId;
+        this.payments = payments;
+    }
+
     public Integer getEmpId() {
         return empId;
     }

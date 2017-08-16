@@ -25,6 +25,7 @@ public class BatchConfig {
     private JobBuilderFactory jobBuilderFactory;
 
     private StepBuilderFactory stepBuilderFactory;
+
     private SqlSessionFactory sqlSessionFactory;
 
     @Autowired

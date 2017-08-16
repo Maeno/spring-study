@@ -42,4 +42,13 @@ public class BonusCalcProcessorTest {
 
         assertThat(bonus.getPayments(), is(150000));
     }
+
+    @Test
+    public void testNull() throws Exception {
+        try {
+            sut.process(null);
+        } catch (Exception e) {
+            assertThat(e.getMessage(), is("emp must not be null."));
+        }
+    }
 }
