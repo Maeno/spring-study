@@ -13,9 +13,15 @@ import javax.sql.DataSource;
 @MapperScan("com.example.batch.repository")
 public class MyBatisConfig {
 
+    private DataSource dataSource;
+
     @Autowired
+    public MyBatisConfig(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
     @Bean
-    public SqlSessionFactoryBean sqlSessionFactoryBean(DataSource dataSource) throws ClassNotFoundException {
+    public SqlSessionFactoryBean sqlSessionFactoryBean() throws ClassNotFoundException {
         final SqlSessionFactoryBean sqlSessionFactoryBean = new SqlSessionFactoryBean();
         sqlSessionFactoryBean.setDataSource(dataSource);
         return sqlSessionFactoryBean;
