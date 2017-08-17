@@ -1,2 +1,2 @@
 language: java
-script: cd batch-example && gradlew build test
+script: cd batch-example && ./gradlew build test
