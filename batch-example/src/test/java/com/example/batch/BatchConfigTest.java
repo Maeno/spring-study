@@ -2,6 +2,7 @@ package com.example.batch;
 
 import com.example.batch.domain.Bonus;
 import org.hamcrest.beans.SamePropertyValuesAs;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.batch.core.BatchStatus;
@@ -32,6 +33,8 @@ import static org.junit.Assert.assertThat;
 @SpringBootTest(classes = {TestDataSourceConfig.class, MyBatisConfig.class, SnapshotJobLauncherTestUtils.class, BatchConfig.class})
 @Sql(executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
         scripts = {"classpath:schema.sql", "classpath:/org/springframework/batch/core/schema-hsqldb.sql"})
+@Sql(executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD,
+        scripts = "classpath:/org/springframework/batch/core/schema-drop-hsqldb.sql")
 public class BatchConfigTest {
 
     private JdbcTemplate jdbcTemplate;
@@ -46,9 +49,8 @@ public class BatchConfigTest {
     @Qualifier(value = "jobLauncherTestUtils")
     private JobLauncherTestUtils jobLauncherTestUtils;
 
-    @Test
-    public void testLaunchJob() throws Exception {
-
+    @Before
+    public void setUp() throws Exception {
         Arrays.asList(
                 "TRUNCATE TABLE BONUS;",
                 "TRUNCATE TABLE EMP;",
@@ -63,7 +65,11 @@ public class BatchConfigTest {
                 "INSERT INTO EMP (EMP_ID, EMP_NAME, BASIC_SALARY, GRADE_CODE) VALUES (3, 'MIKEs', 300000, 3);",
                 "INSERT INTO EMP (EMP_ID, EMP_NAME, BASIC_SALARY, GRADE_CODE) VALUES (4, 'PHIL', 350000, 4);",
                 "INSERT INTO EMP (EMP_ID, EMP_NAME, BASIC_SALARY, GRADE_CODE) VALUES (5, 'JACK', 400000, 5);")
-        .forEach(s -> jdbcTemplate.execute(s));
+                .forEach(s -> jdbcTemplate.execute(s));
+    }
+
+    @Test
+    public void testLaunchJob() throws Exception {
 
         JobExecution jobExecution = jobLauncherTestUtils.launchJob();
         assertThat(jobExecution.getStatus(), is(BatchStatus.COMPLETED));
@@ -89,6 +95,23 @@ public class BatchConfigTest {
                 SamePropertyValuesAs.samePropertyValuesAs(new Bonus(5, 1200000)));
     }
 
+    @Test
+    public void testFailedJob() throws Exception {
+
+        jdbcTemplate.execute("INSERT INTO BONUS (EMP_ID, PAYMENTS) VALUES (5, 100);");
+
+        JobExecution jobExecution = jobLauncherTestUtils.launchJob();
+        assertThat(jobExecution.getStatus(), is(BatchStatus.FAILED));
+
+        final List<Bonus> bonuses = jdbcTemplate.query(
+                "SELECT * FROM BONUS",
+                (ResultSet rs, int rowNum) -> {
+                    return new Bonus(rs.getInt(1), rs.getInt(2));
+                }
+        );
+
+        assertThat(bonuses.size(), is(1));
+    }
 }
 
 @Component(value = "jobLauncherTestUtils")
@@ -109,7 +132,7 @@ class TestDataSourceConfig {
     public DataSource dataSource() throws ClassNotFoundException {
 
         return new EmbeddedDatabaseBuilder()
-                    .setType(EmbeddedDatabaseType.HSQL)
-                    .build();
+                .setType(EmbeddedDatabaseType.HSQL)
+                .build();
     }
 }
