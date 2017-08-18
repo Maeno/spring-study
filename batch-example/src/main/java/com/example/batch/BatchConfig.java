@@ -14,9 +14,11 @@ import org.springframework.batch.core.configuration.annotation.EnableBatchProces
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.item.file.FlatFileItemWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.FileSystemResource;
 
 @Configuration
 @EnableBatchProcessing
@@ -38,12 +40,19 @@ public class BatchConfig {
     }
 
     @Bean
-    public MyBatisCursorItemReader<Emp> reader() {
+    public MyBatisCursorItemReader empReader() {
         final MyBatisCursorItemReader<Emp> reader = new MyBatisCursorItemReader<>();
-        reader.setQueryId("findAll");
         reader.setSqlSessionFactory(sqlSessionFactory);
+        reader.setQueryId("com.example.batch.repository.EmpMapper.findAll");
         return reader;
+    }
 
+    @Bean
+    public MyBatisCursorItemReader bonusReader() {
+        final MyBatisCursorItemReader<Bonus> reader = new MyBatisCursorItemReader<>();
+        reader.setSqlSessionFactory(sqlSessionFactory);
+        reader.setQueryId("com.example.batch.repository.BonusMapper.findAll");
+        return reader;
     }
 
     @Bean
@@ -56,6 +65,21 @@ public class BatchConfig {
         final MyBatisBatchItemWriter<Bonus> writer = new MyBatisBatchItemWriter<>();
         writer.setSqlSessionFactory(sqlSessionFactory);
         writer.setStatementId("insert");
+        return writer;
+    }
+
+    @Bean
+    public FlatFileItemWriter<Bonus> fileWriter() {
+        final FlatFileItemWriter<Bonus> writer = new FlatFileItemWriter<>();
+        writer.setResource(new FileSystemResource("out/bonus.txt"));
+        writer.setHeaderCallback(headerWriter -> headerWriter.append("EMP_ID")
+                .append(",")
+                .append("PAYMENTS"));
+        writer.setLineAggregator(item -> new StringBuilder()
+                .append(item.getEmpId())
+                .append(",")
+                .append(item.getPayments())
+                .toString());
         return writer;
     }
 
@@ -75,25 +99,46 @@ public class BatchConfig {
     }
 
     @Bean
-    public Step step1() {
+    public Step readEmpAndWriteBonus() {
         return stepBuilderFactory
-                .get("step1")
+                .get("readEmpAndWriteBonus")
                 .<Emp, Bonus>chunk(10)
-                .reader(reader())
+                .reader(empReader())
                 .processor(processor())
                 .writer(writer())
                 .build();
     }
 
     @Bean
-    public Job job1() {
+    public Step readBonusAndWriteFile() {
+        return stepBuilderFactory
+                .get("readBonusAndWriteFile")
+                .<Bonus, Bonus>chunk(10)
+                .reader(bonusReader())
+                .writer(fileWriter())
+                .build();
+    }
+
+    @Bean
+    public Job singleJob() {
         return jobBuilderFactory
-                .get("job1")
+                .get("singleJob")
                 .incrementer(new RunIdIncrementer())
                 .listener(listener())
-                .flow(step1())
+                .flow(readEmpAndWriteBonus())
                 .end()
                 .build();
     }
 
+    @Bean
+    public Job multiJob() {
+        return jobBuilderFactory
+                .get("multiJob")
+                .incrementer(new RunIdIncrementer())
+                .listener(listener())
+                .flow(readEmpAndWriteBonus())
+                .next(readBonusAndWriteFile())
+                .end()
+                .build();
+    }
 }
