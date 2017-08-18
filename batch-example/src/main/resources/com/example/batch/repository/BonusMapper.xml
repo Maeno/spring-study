@@ -5,6 +5,21 @@
 
 <mapper namespace="com.example.batch.repository.BonusMapper">
 
+    <resultMap id="bonus" type="com.example.batch.domain.Bonus">
+        <result column="EMP_ID" property="empId" />
+        <result column="PAYMENTS" property="payments" />
+    </resultMap>
+
+    <select id="findAll" resultMap="bonus">
+        <![CDATA[
+            SELECT
+                BONUS.EMP_ID,
+                BONUS.PAYMENTS
+        FROM
+            BONUS
+        ]]>
+    </select>
+
     <insert id="insert"
             parameterType="com.example.batch.domain.Bonus">
         <![CDATA[

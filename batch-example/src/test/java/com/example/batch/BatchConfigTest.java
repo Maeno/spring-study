@@ -22,15 +22,25 @@ import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import javax.sql.DataSource;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
 
 @RunWith(SpringJUnit4ClassRunner.class)
-@SpringBootTest(classes = {TestDataSourceConfig.class, MyBatisConfig.class, SnapshotJobLauncherTestUtils.class, BatchConfig.class})
+@SpringBootTest(classes = {
+        TestDataSourceConfig.class,
+        MyBatisConfig.class,
+        SingleJobLauncherTestUtils.class,
+        MultiJobLauncherTestUtils.class,
+        BatchConfig.class
+})
 @Sql(executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
         scripts = {"classpath:schema.sql", "classpath:/org/springframework/batch/core/schema-hsqldb.sql"})
 @Sql(executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD,
@@ -46,8 +56,13 @@ public class BatchConfigTest {
 
 
     @Autowired
-    @Qualifier(value = "jobLauncherTestUtils")
-    private JobLauncherTestUtils jobLauncherTestUtils;
+    @Qualifier(value = "singleJobLauncherTestUtils")
+    private JobLauncherTestUtils singleJobLauncherTestUtils;
+
+    @Autowired
+    @Qualifier(value = "multiJobLauncherTestUtils")
+    private JobLauncherTestUtils multiJobLauncherTestUtils;
+
 
     @Before
     public void setUp() throws Exception {
@@ -69,16 +84,13 @@ public class BatchConfigTest {
     }
 
     @Test
-    public void testLaunchJob() throws Exception {
-
-        JobExecution jobExecution = jobLauncherTestUtils.launchJob();
+    public void testSigleJob() throws Exception {
+        JobExecution jobExecution = singleJobLauncherTestUtils.launchJob();
         assertThat(jobExecution.getStatus(), is(BatchStatus.COMPLETED));
 
         final List<Bonus> bonuses = jdbcTemplate.query(
                 "SELECT * FROM BONUS",
-                (ResultSet rs, int rowNum) -> {
-                    return new Bonus(rs.getInt(1), rs.getInt(2));
-                }
+                (ResultSet rs, int rowNum) -> new Bonus(rs.getInt(1), rs.getInt(2))
         );
 
         assertThat(bonuses.size(), is(5));
@@ -96,29 +108,57 @@ public class BatchConfigTest {
     }
 
     @Test
-    public void testFailedJob() throws Exception {
+    public void testFailedSingleJob() throws Exception {
 
         jdbcTemplate.execute("INSERT INTO BONUS (EMP_ID, PAYMENTS) VALUES (5, 100);");
 
-        JobExecution jobExecution = jobLauncherTestUtils.launchJob();
+        JobExecution jobExecution = singleJobLauncherTestUtils.launchJob();
         assertThat(jobExecution.getStatus(), is(BatchStatus.FAILED));
 
         final List<Bonus> bonuses = jdbcTemplate.query(
                 "SELECT * FROM BONUS",
-                (ResultSet rs, int rowNum) -> {
-                    return new Bonus(rs.getInt(1), rs.getInt(2));
-                }
+                (ResultSet rs, int rowNum) -> new Bonus(rs.getInt(1), rs.getInt(2))
         );
 
         assertThat(bonuses.size(), is(1));
     }
+
+    @Test
+    public void testMultiJob() throws Exception {
+        JobExecution jobExecution = multiJobLauncherTestUtils.launchJob();
+        assertThat(jobExecution.getStatus(), is(BatchStatus.COMPLETED));
+
+        try (Stream<String> stream = Files.lines(Paths.get("out/bonus.txt"))) {
+
+            final List<String> actual = stream.collect(Collectors.toList());
+            assertThat(actual, contains(
+                    "EMP_ID,PAYMENTS",
+                    "1,150000",
+                    "2,375000",
+                    "3,600000",
+                    "4,875000",
+                    "5,1200000"
+            ));
+        }
+    }
 }
 
-@Component(value = "jobLauncherTestUtils")
-class SnapshotJobLauncherTestUtils extends JobLauncherTestUtils {
+@Component(value = "singleJobLauncherTestUtils")
+class SingleJobLauncherTestUtils extends JobLauncherTestUtils {
 
     @Autowired
-    @Qualifier(value = "job1")
+    @Qualifier(value = "singleJob")
+    @Override
+    public void setJob(Job job) {
+        super.setJob(job);
+    }
+}
+
+@Component(value = "multiJobLauncherTestUtils")
+class MultiJobLauncherTestUtils extends JobLauncherTestUtils {
+
+    @Autowired
+    @Qualifier(value = "multiJob")
     @Override
     public void setJob(Job job) {
         super.setJob(job);
@@ -130,7 +170,6 @@ class TestDataSourceConfig {
 
     @Bean
     public DataSource dataSource() throws ClassNotFoundException {
-
         return new EmbeddedDatabaseBuilder()
                 .setType(EmbeddedDatabaseType.HSQL)
                 .build();

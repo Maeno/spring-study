@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class BatchExampleApplication {
 
 	public static void main(String[] args) {
+		System.setProperty("spring.batch.job.names","multiJob");
 		SpringApplication.run(BatchExampleApplication.class, args);
 	}
 }
