@@ -1,2 +1,4 @@
 language: java
 script: cd batch-example && ./gradlew build test
+after_success:
+    - cd batch-example && ./gradlew jacocoTestReport coveralls
