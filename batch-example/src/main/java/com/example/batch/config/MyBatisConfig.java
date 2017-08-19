@@ -1,4 +1,4 @@
-package com.example.batch;
+package com.example.batch.config;
 
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.mybatis.spring.annotation.MapperScan;

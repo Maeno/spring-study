@@ -1,5 +1,7 @@
 package com.example.batch;
 
+import com.example.batch.config.BatchConfig;
+import com.example.batch.config.MyBatisConfig;
 import com.example.batch.domain.Bonus;
 import org.hamcrest.beans.SamePropertyValuesAs;
 import org.junit.Before;

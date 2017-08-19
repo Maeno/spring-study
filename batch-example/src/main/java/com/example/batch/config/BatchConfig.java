@@ -1,4 +1,4 @@
-package com.example.batch;
+package com.example.batch.config;
 
 import com.example.batch.chunk.BonusCalcProcessor;
 import com.example.batch.domain.Bonus;
